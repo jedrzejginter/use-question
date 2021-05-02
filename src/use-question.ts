@@ -13,15 +13,20 @@ function isActive<D>(c: { data: D | null }): c is { data: D } {
 
 const prom = Promise.resolve();
 
-export default function useQuestion<DataType = void>() {
+type Callbacks<DT> = {
+  okCallback: (d: DT) => void;
+  cancelCallback: () => void;
+}
+
+export default function useQuestion<DataType = void, CbData = void>() {
   const [data, setData] = React.useState<DataType | null>(null);
-  const callbacksRef = React.useRef({
+  const callbacksRef = React.useRef<Callbacks<CbData>>({
     okCallback: fn,
     cancelCallback: fn,
   });
   const prevRef = useRef(prom);
 
-  const ask = React.useCallback(async (data: DataType) => {
+  const ask = React.useCallback(async (data: DataType): Promise<(void extends CbData ? true : CbData)|false> => {
     callbacksRef.current.cancelCallback();
 
     await prevRef.current;
@@ -38,7 +43,7 @@ export default function useQuestion<DataType = void>() {
     prevRef.current = p0;
 
     promises = [
-      new Promise((res, rej) => {
+      new Promise<'CANCEL'>((res, rej) => {
         rejects[0] = rej;
         callbacksRef.current.cancelCallback = () => res('CANCEL');
       }).then((val) => {
@@ -48,9 +53,9 @@ export default function useQuestion<DataType = void>() {
         prevRes();
         return val;
       }),
-      new Promise((res, rej) => {
+      new Promise<CbData|void|'CONFIRM'>((res, rej) => {
         rejects[1] = rej;
-        callbacksRef.current.okCallback = () => res('CONFIRM');
+        callbacksRef.current.okCallback = (d: CbData) => res(d ?? 'CONFIRM');
       }).then((val) => {
         setData(null);
         rejects[0]();
@@ -62,13 +67,17 @@ export default function useQuestion<DataType = void>() {
 
     setData(data);
 
-    const decision = await Promise.race(promises);
+    const val = await Promise.race<Promise<any>>(promises);
 
-    return decision !== 'CANCEL';
+    if (val === 'CANCEL') {
+      return false;
+    }
+
+    return (typeof val === 'undefined' || val === 'CONFIRM') ? true : val;
   }, []);
 
-  const onConfirm = React.useCallback(() => {
-    callbacksRef.current.okCallback();
+  const onConfirm = React.useCallback((d: CbData) => {
+    callbacksRef.current.okCallback(d);
   }, []);
 
   const onReject = React.useCallback(() => {
