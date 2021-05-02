@@ -2,7 +2,6 @@
 
 > React hook for user action confirmation based on promises.
 
-
 ## Installation
 
 ```bash
@@ -16,7 +15,7 @@ npm i -D @ginterdev/use-question
 ## Usage
 
 ```tsx
-import React from 'react';
+import * as React from 'react';
 import useQuestion from '@ginterdev/use-question';
 
 function Component() {
@@ -42,6 +41,6 @@ function Component() {
         </div>
       )}
     </>
-  )
+  );
 }
 ```
