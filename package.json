@@ -6,7 +6,9 @@
   "author": "Jedrzej Ginter <dzeejj@gmail.com> (https://github.com/jedrzejginter)",
   "license": "MIT",
   "main": "./lib/index.js",
-  "files": ["lib"],
+  "files": [
+    "lib"
+  ],
   "keywords": [
     "confirm",
     "confirmation",
@@ -15,7 +17,7 @@
     "react-confirm"
   ],
   "scripts": {
-    "build": "tsc --jsx react",
+    "build": "rimraf lib && tsc --jsx react",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@types/react": "17.0.4",
     "react": "17.0.2",
+    "rimraf": "3.0.2",
     "typescript": "4.2.4"
   }
 }
