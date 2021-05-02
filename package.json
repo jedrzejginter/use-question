@@ -1,0 +1,29 @@
+{
+  "name": "@ginterdev/use-question",
+  "version": "0.0.0",
+  "description": "React hook for user action confirmation based on promises.",
+  "repository": "git@github.com:jedrzejginter/use-question.git",
+  "author": "Jedrzej Ginter <dzeejj@gmail.com> (https://github.com/jedrzejginter)",
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "files": ["lib"],
+  "keywords": [
+    "confirm",
+    "confirmation",
+    "alert",
+    "react",
+    "react-confirm"
+  ],
+  "scripts": {
+    "build": "tsc --jsx react",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=16.13"
+  },
+  "devDependencies": {
+    "@types/react": "17.0.4",
+    "react": "17.0.2",
+    "typescript": "4.2.4"
+  }
+}
