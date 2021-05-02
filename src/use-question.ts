@@ -24,9 +24,7 @@ export default function useQuestion<DataType = void>() {
   const ask = React.useCallback(async (data: DataType) => {
     callbacksRef.current.cancelCallback();
 
-
     await prevRef.current;
-
 
     let promises: [Promise<any>, Promise<any>];
     let rejects: any[] = [];
