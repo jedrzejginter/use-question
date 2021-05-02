@@ -1,6 +1,6 @@
 {
   "name": "@ginterdev/use-question",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.1",
   "description": "React hook for user action confirmation based on promises.",
   "repository": "git@github.com:jedrzejginter/use-question.git",
   "author": "Jedrzej Ginter <dzeejj@gmail.com> (https://github.com/jedrzejginter)",
