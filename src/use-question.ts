@@ -13,7 +13,7 @@ function isActive<D>(c: { data: D | null }): c is { data: D } {
 
 const prom = Promise.resolve();
 
-export default function useQuestion<DataType = string>() {
+export default function useQuestion<DataType = void>() {
   const [data, setData] = React.useState<DataType | null>(null);
   const callbacksRef = React.useRef({
     okCallback: fn,
