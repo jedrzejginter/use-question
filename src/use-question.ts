@@ -1,88 +1,115 @@
-import React, { useRef } from 'react';
+import React from 'react';
 
-function fn() {}
+function noop() {}
 
-const initCallbacks = {
-  okCallback: fn,
-  cancelCallback: fn,
+const noopPromise = Promise.resolve();
+
+const noopCallbacks = {
+  onConfirm: noop,
+  onDismiss: noop,
 };
 
-function isActive<D>(c: { data: D | null }): c is { data: D } {
-  return c.data !== null;
+function isActive<AskCallbackData>(
+  question: { config: AskCallbackData | null },
+): question is { config: AskCallbackData } {
+  return question.config !== null;
 }
 
-const prom = Promise.resolve();
+type Callbacks<ConfirmCallbackData> = {
+  onConfirm: (data: ConfirmCallbackData) => void;
+  onDismiss: () => void;
+};
 
-type Callbacks<DT> = {
-  okCallback: (d: DT) => void;
-  cancelCallback: () => void;
-}
+export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackData = void>() {
+  type ValueReturnedFromAsk = void extends ConfirmCallbackData ? true : ConfirmCallbackData;
 
-export default function useQuestion<DataType = void, CbData = void>() {
-  const [data, setData] = React.useState<DataType | null>(null);
-  const callbacksRef = React.useRef<Callbacks<CbData>>({
-    okCallback: fn,
-    cancelCallback: fn,
-  });
-  const prevRef = useRef(prom);
+  const [config, setConfig] = React.useState<AskCallbackConfig | null>(null);
+  const callbacksRef = React.useRef<Callbacks<ConfirmCallbackData>>(noopCallbacks);
+  const previousCallPromiseRef = React.useRef(noopPromise);
 
-  const ask = React.useCallback(async (data: DataType): Promise<(void extends CbData ? true : CbData)|false> => {
-    callbacksRef.current.cancelCallback();
+  const ask = React.useCallback(
+    async (config: AskCallbackConfig): Promise<ValueReturnedFromAsk|false> => {
+      callbacksRef.current.onDismiss();
 
-    await prevRef.current;
+      await previousCallPromiseRef.current;
 
-    let promises: [Promise<any>, Promise<any>];
-    let rejects: any[] = [];
+      let promises: [Promise<'CANCEL'>, Promise<'CONFIRM' | ConfirmCallbackData>];
+      let rejections: [() => void, () => void] = [noop, noop];
 
-    let prevRes: () => void;
+      let resolvePreviousCall: () => void;
 
-    const p0 = new Promise<void>((res) => {
-      prevRes = res;
-    });
+      previousCallPromiseRef.current = new Promise<void>((resolve) => {
+        resolvePreviousCall = resolve;
+      });
 
-    prevRef.current = p0;
+      promises = [
+        new Promise<'CANCEL'>((resolve, reject) => {
+          rejections[0] = reject;
+          callbacksRef.current.onDismiss = () => resolve('CANCEL');
+        }).then((val) => {
+          setConfig(null);
+          rejections[1]();
+          callbacksRef.current = noopCallbacks;
+          resolvePreviousCall();
 
-    promises = [
-      new Promise<'CANCEL'>((res, rej) => {
-        rejects[0] = rej;
-        callbacksRef.current.cancelCallback = () => res('CANCEL');
-      }).then((val) => {
-        setData(null);
-        rejects[1]();
-        callbacksRef.current = initCallbacks;
-        prevRes();
-        return val;
-      }),
-      new Promise<CbData|void|'CONFIRM'>((res, rej) => {
-        rejects[1] = rej;
-        callbacksRef.current.okCallback = (d: CbData) => res(d ?? 'CONFIRM');
-      }).then((val) => {
-        setData(null);
-        rejects[0]();
-        callbacksRef.current = initCallbacks;
-        prevRes();
-        return val;
-      }),
-    ];
+          return val;
+        }),
+        new Promise<'CONFIRM' | ConfirmCallbackData>((resolve, reject) => {
+          rejections[1] = reject;
+          callbacksRef.current.onConfirm = (data: ConfirmCallbackData) => resolve(data ?? 'CONFIRM');
+        }).then((val) => {
+          setConfig(null);
+          rejections[0]();
+          callbacksRef.current = noopCallbacks;
+          resolvePreviousCall();
 
-    setData(data);
+          return val;
+        }),
+      ];
 
-    const val = await Promise.race<Promise<any>>(promises);
+      setConfig(config);
 
-    if (val === 'CANCEL') {
-      return false;
-    }
+      const resolvedValue = await Promise.race<
+        Promise<'CANCEL' | 'CONFIRM' | ConfirmCallbackData>
+      >(promises);
 
-    return (typeof val === 'undefined' || val === 'CONFIRM') ? true : val;
+      // Dismissed or cancelled.
+      if (resolvedValue === 'CANCEL') {
+        return false;
+      }
+
+      // Confirmed without any value (or with null/undefined).
+      if (resolvedValue === 'CONFIRM') {
+        return true as ValueReturnedFromAsk
+      }
+
+      // We have to warn user about passing a falsy value that would
+      // cause 'ask(..)' to be falsy when calling 'confirm(..)'..
+      if (
+        typeof resolvedValue === 'number' && resolvedValue === 0 ||
+        typeof resolvedValue === 'string' && resolvedValue === ''
+      ) {
+        console.error(
+          'You have passed a falsy value to the "confirm" callback causing possible incorrect behavior of this hook. Returning true instead.'
+        );
+
+        return true as ValueReturnedFromAsk
+      }
+
+      return resolvedValue as ValueReturnedFromAsk;
+    },
+    [],
+  );
+
+  const confirm = React.useCallback((data: ConfirmCallbackData) => {
+    callbacksRef.current.onConfirm(data);
   }, []);
 
-  const onConfirm = React.useCallback((d: CbData) => {
-    callbacksRef.current.okCallback(d);
+  const dismiss = React.useCallback(() => {
+    callbacksRef.current.onDismiss();
   }, []);
 
-  const onReject = React.useCallback(() => {
-    callbacksRef.current.cancelCallback();
-  }, []);
-
-  return { ask, data, isActive, onConfirm, onReject };
+  return React.useMemo(() => ({ ask, confirm, dismiss, config, isActive }), [
+    ask, confirm, dismiss, config
+  ]);
 }
