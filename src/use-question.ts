@@ -9,9 +9,9 @@ const noopCallbacks = {
   onDismiss: noop,
 };
 
-function isActive<AskCallbackData>(
-  question: { config: AskCallbackData | null },
-): question is { config: AskCallbackData } {
+function isActive<AskCallbackConfig>(
+  question: { config: AskCallbackConfig | null },
+): question is { config: AskCallbackConfig } {
   return question.config !== null;
 }
 
