@@ -28,7 +28,7 @@ export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackDat
   const [config, setConfig] = React.useState<AskCallbackConfig | null>(null);
   const callbacksRef = React.useRef<Callbacks<ConfirmCallbackData>>(noopCallbacks);
   const previousCallPromiseRef = React.useRef(noopPromise);
-  const hookOptionsRef = React.useRef(hookOptions)
+  const hookOptionsRef = React.useRef(hookOptions);
 
   const ask = React.useCallback(
     async (config: AskCallbackConfig): Promise<ValueReturnedFromAsk|false> => {
