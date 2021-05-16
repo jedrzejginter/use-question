@@ -19,7 +19,7 @@ import * as React from 'react';
 import useQuestion from '@ginterdev/use-question';
 
 function Component() {
-  const { ask,...question } = useQuestion<{ message: string }>();
+  const { ask, ...question } = useQuestion<{ message: string }>();
 
   const handleClick = React.useCallback(async () => {
     if (await ask({ message: 'Are you sure you want to do this?' })) {
