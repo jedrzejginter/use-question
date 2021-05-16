@@ -3,12 +3,12 @@ import React from 'react'
 import useQuestion from '../../src'
 
 export function Component() {
-  const { ask, ...question } = useQuestion<{ message: string }, 'xyz'>();
+  const { ask, ...question } = useQuestion({ timeout: 3000 });
 
   const handleClick = React.useCallback(async () => {
-    const r = await ask({ message: 'Are you sure you want to do this?' })
+    const res = await ask({ message: 'Are you sure you want to do this?' })
 
-    if (r) {
+    if (res) {
       console.log('CONFIRMED ✅');
     } else {
       console.log('CANCELLED ❌');

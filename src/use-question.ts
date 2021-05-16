@@ -20,12 +20,15 @@ type Callbacks<ConfirmCallbackData> = {
   onDismiss: () => void;
 };
 
-export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackData = void>() {
+export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackData = void>(
+  hookOptions: {timeout?:number} = {}
+) {
   type ValueReturnedFromAsk = void extends ConfirmCallbackData ? true : ConfirmCallbackData;
 
   const [config, setConfig] = React.useState<AskCallbackConfig | null>(null);
   const callbacksRef = React.useRef<Callbacks<ConfirmCallbackData>>(noopCallbacks);
   const previousCallPromiseRef = React.useRef(noopPromise);
+  const hookOptionsRef = React.useRef(hookOptions)
 
   const ask = React.useCallback(
     async (config: AskCallbackConfig): Promise<ValueReturnedFromAsk|false> => {
@@ -33,8 +36,8 @@ export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackDat
 
       await previousCallPromiseRef.current;
 
-      let promises: [Promise<'CANCEL'>, Promise<'CONFIRM' | ConfirmCallbackData>];
-      let rejections: [() => void, () => void] = [noop, noop];
+      let promises: [Promise<'TIMEOUT'>, Promise<'CANCEL'>, Promise<'CONFIRM' | ConfirmCallbackData>];
+      let rejections: [() => void, () => void, () => void] = [noop, noop, noop];
 
       let resolvePreviousCall: () => void;
 
@@ -42,24 +45,50 @@ export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackDat
         resolvePreviousCall = resolve;
       });
 
+      function rejectAllExcept(exceptIndex: number) {
+        rejections.forEach((reject, index) => {
+          if (index === exceptIndex) {
+            return
+          }
+
+          reject()
+        })
+      }
+
       promises = [
-        new Promise<'CANCEL'>((resolve, reject) => {
+        new Promise<'TIMEOUT'>((resolve, reject) => {
           rejections[0] = reject;
+
+          if (!hookOptionsRef.current.timeout) {
+            return
+          }
+
+          setTimeout(() => { resolve('TIMEOUT') }, hookOptionsRef.current.timeout);
+        }).then((val) => {
+          setConfig(null);
+          rejectAllExcept(0);
+          callbacksRef.current = noopCallbacks;
+          resolvePreviousCall();
+
+          return val;
+        }),
+        new Promise<'CANCEL'>((resolve, reject) => {
+          rejections[1] = reject;
           callbacksRef.current.onDismiss = () => resolve('CANCEL');
         }).then((val) => {
           setConfig(null);
-          rejections[1]();
+          rejectAllExcept(1);
           callbacksRef.current = noopCallbacks;
           resolvePreviousCall();
 
           return val;
         }),
         new Promise<'CONFIRM' | ConfirmCallbackData>((resolve, reject) => {
-          rejections[1] = reject;
+          rejections[2] = reject;
           callbacksRef.current.onConfirm = (data: ConfirmCallbackData) => resolve(data ?? 'CONFIRM');
         }).then((val) => {
           setConfig(null);
-          rejections[0]();
+          rejectAllExcept(2);
           callbacksRef.current = noopCallbacks;
           resolvePreviousCall();
 
@@ -70,11 +99,11 @@ export default function useQuestion<AskCallbackConfig = void, ConfirmCallbackDat
       setConfig(config);
 
       const resolvedValue = await Promise.race<
-        Promise<'CANCEL' | 'CONFIRM' | ConfirmCallbackData>
+        Promise<'TIMEOUT' | 'CANCEL' | 'CONFIRM' | ConfirmCallbackData>
       >(promises);
 
-      // Dismissed or cancelled.
-      if (resolvedValue === 'CANCEL') {
+      // Dismissed, timed out or cancelled.
+      if (resolvedValue === 'CANCEL' || resolvedValue === 'TIMEOUT') {
         return false;
       }
 
